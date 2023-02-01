@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -25,24 +25,24 @@ class SampleOperator(BaseOperator):
 
     # Specify the arguments that are allowed to parse with jinja templating
     template_fields = [
-        'endpoint',
-        'data',
-        'headers',
+        "endpoint",
+        "data",
+        "headers",
     ]
-    template_fields_renderers = {'headers': 'json', 'data': 'py'}
+    template_fields_renderers = {"headers": "json", "data": "py"}
     template_ext = ()
-    ui_color = '#f4a460'
+    ui_color = "#f4a460"
 
     @apply_defaults
     def __init__(
         self,
         *,
         endpoint: Optional[str] = None,
-        method: str = 'POST',
+        method: str = "POST",
         data: Any = None,
         headers: Optional[Dict[str, str]] = None,
         extra_options: Optional[Dict[str, Any]] = None,
-        sample_conn_id: str = 'conn_sample',
+        sample_conn_id: str = "conn_sample",
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -52,12 +52,10 @@ class SampleOperator(BaseOperator):
         self.headers = headers or {}
         self.data = data or {}
         self.extra_options = extra_options or {}
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException(
-                "'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
+        if kwargs.get("xcom_push") is not None:
+            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: Dict[str, Any]) -> Any:
-
         hook = SampleHook(self.method, sample_conn_id=self.sample_conn_id)
 
         self.log.info("Call HTTP method")

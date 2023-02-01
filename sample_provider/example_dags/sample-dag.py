@@ -1,7 +1,6 @@
 from pendulum import datetime
-from datetime import timedelta
 
-from airflow.decorators import dag, task
+from airflow.decorators import dag
 
 from sample_provider.operators.sample_operator import SampleOperator
 from sample_provider.sensors.sample_sensor import SampleSensor
@@ -10,13 +9,9 @@ from sample_provider.sensors.sample_sensor import SampleSensor
 @dag(
     start_date=datetime(2022, 1, 1),
     schedule_interval=None,
-    # ``default_args`` will get passed on to each task. You can override them on a per-task basis during
-    # operator initialization.
-    default_args={"retries": 2, sample_conn_id: "conn_sample"},
     tags=["example"],
-    default_view="graph",
 )
-def sample_worflow():
+def sample_workflow():
     """
     ### Sample DAG
 

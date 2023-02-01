@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "airflow-provider-venv"
+version = "0.0.1"
+authors = [
+    {name = "Ash Berlin-Taylor", email = "ash_github@firemirror.com"},
+    {name = "Ian Buss", email = "ian.buss@astronomer.io"},
+    {name = "Kaxil Niak", email = "kaxil@astronomer.io"},
+]
+license = {text = "Apache License 2.0"}
+description = "Easily create and use Python Virtualenvs in Apache Airflow"
+classifiers = [
+    "Framework :: Apache Airflow",
+    "Framework :: Apache Airflow :: Provider",
+]
+urls = {Homepage = "http://astronomer.io/"}
+requires-python = "~=3.7"
+dependencies = ["apache-airflow>=2.4"]
+
+[project.optional-dependencies]
+tests = [
+    "pytest>=7.0",
+]
+
+[project.readme]
+file = "README.md"
+content-type = "text/markdown"
+
+# [project.entry-points.apache_airflow_provider]
+# provider_info = "sample_provider.__init__:get_provider_info"
+
+[tool.setuptools]
+packages = [
+    "sample_provider",
+]
+include-package-data = false
+
+[tool.ruff]
+line-length = 110
+target-version = "py37"
+extend-select = [
+    "PGH", #pygrep-hooks
+    "UP", # Pyupgrade
+    "RUF100", # Unused noqa (auto-fixable)
+]

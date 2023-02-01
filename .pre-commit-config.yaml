@@ -1,0 +1,48 @@
+---
+exclude: ^buildkit/deps
+repos:
+  - repo: meta
+    hooks:
+      - id: check-hooks-apply
+      - id: check-useless-excludes
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-yaml
+      - id: debug-statements
+      - id: end-of-file-fixer
+      - id: mixed-line-ending
+      - id: trailing-whitespace
+      - id: detect-private-key
+      - id: detect-aws-credentials
+        args: ["--allow-missing-credentials"]
+
+  - repo: https://github.com/Lucas-C/pre-commit-hooks
+    rev: v1.3.1
+    hooks:
+      - id: forbid-crlf
+      - id: remove-crlf
+
+  - repo: https://github.com/psf/black
+    rev: 22.12.0
+    hooks:
+      - id: black
+        args: ["-l","110"]
+
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: 'v0.0.239'
+    hooks:
+      - id: ruff
+
+  - repo: https://github.com/dnephin/pre-commit-golang
+    rev: v0.5.1
+    hooks:
+      - id: go-fmt
+      - id: go-mod-tidy
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.6.23
+    hooks:
+      - id: actionlint
