@@ -1,0 +1,174 @@
+name: Provider
+
+on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - buildkit
+      - '.github/workflows/buildkit.yml'
+    tags:
+      - 'provider/**'
+  pull_request:
+    paths-ignore:
+      - buildkit
+      - '.github/workflows/buildkit.yml'
+jobs:
+  test:
+    strategy:
+      matrix:
+        platform:
+          - ubuntu-latest
+        python-version:
+          - '3.7'
+          # - '3.8'
+          # - '3.9'
+          # - '3.10'
+          - '3.11'
+        include:
+          # And for one build, upload the artifacts for _every_ PR/build
+          - python-verion: '3.11'
+            platform: ubuntu-latest
+            wheels-to-artifacts: true
+    runs-on: ${{ matrix.platform }}
+    steps:
+    - uses: actions/checkout@v3
+    - id: setup
+      name: Setup toolchains
+      uses: ./.github/actions/setup-env
+      with:
+        python-version: ${{ matrix.python-version }}
+        python-extras: |
+          build
+          wheel
+
+    - run: "pip install -e '.[tests]' -v"
+
+    - name: python tests
+      run: python -m pytest
+
+    - name: build wheel
+      run: python -m build
+      # Don't build wheel here if we'd do a full build anyway
+      if: matrix.wheels-to-artifacts && (github.ref_type != 'tag' && github.ref != 'refs/heads/main' && !contains(github.event.pull_request.labels.*.name, 'Full Build'))
+
+    - uses: actions/upload-artifact@v3
+      with:
+        name: pypi_files-${{ matrix.python-version }}
+        path: dist
+      if: matrix.wheels-to-artifacts && (github.ref_type != 'tag' && github.ref != 'refs/heads/main' && !contains(github.event.pull_request.labels.*.name, 'Full Build'))
+
+  lint:
+    uses: ./.github/workflows/lint.yml
+
+  # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
+  check:
+    if: always()
+    needs: [test, lint]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Decide whether the needed jobs succeeded or failed
+        uses: re-actors/alls-green@release/v1
+        with:
+          jobs: ${{ toJSON(needs) }}
+
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu]
+        target: [x86_64]
+    name: build on ${{ matrix.os }} (${{ matrix.target }})
+    # only run on push to main and on release, or with tag
+    if: "success() && (github.ref_type == 'tag' || github.ref == 'refs/heads/main' || contains(github.event.pull_request.labels.*.name, 'Full Build'))"
+    runs-on: ${{ matrix.os }}-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - id: setup-python
+        name: set up python
+        uses: actions/setup-python@v4
+        with:
+          # 3.11 isn't in the hosted tool cache, but all the others are, so we only need to add that one
+          python-version: 3.11
+
+      - run: pip install -U twine build 'black>=22.3.0,<23'
+
+      - name: build sdist
+        run: python -m build
+
+      - run: ls -altrh dist/
+        shell: bash
+
+      - run: twine check dist/*
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: pypi_files
+          path: dist
+
+  inspect-pypi-assets:
+    needs: [build]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pypi_files
+          path: dist
+
+      - name: list dist files
+        run: |
+         ls -lh dist/
+         echo "`ls dist | wc -l` files"
+      - name: extract and list sdist file
+        run: |
+         mkdir sdist-files
+         tar -xvf dist/*.tar.gz -C sdist-files
+         tree -a sdist-files
+      - name: extract and list wheel file
+        run: |
+         ls dist/*.whl | head -n 1
+         python -m zipfile --list `ls dist/*.whl | head -n 1`
+
+  release:
+    needs: [build, check]
+    if: "success() && startsWith(github.ref, 'refs/tags/')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: set up python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: check package version
+        run: python .github/check-version.py
+
+      - run: pip install -U twine
+
+      - name: get dist artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: pypi_files
+          path: dist
+
+      - run: twine check dist/*
+
+      - name: upload to pypi
+        run: twine upload dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi_token }}
+
+      - name: upload to github release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/*
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}

@@ -1,0 +1,55 @@
+name: Setup project environment
+inputs:
+  go:
+    required: false
+    default: false
+    description: Should go be set up
+  python-version:
+    required: false
+  python-extras:
+    required: false
+    default: ""
+    description: Python extras to inclue in this environment. requirements.txt (multiline) format
+
+outputs:
+  go-cache-hit:
+    value: ${{ steps.setup-go.outputs.cache-hit }}
+  python-cache-hit:
+    value: ${{ steps.setup-python.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: setup-go
+      uses: actions/setup-go@v3
+      with:
+        go-version-file: 'buildkit/go.mod'
+        cache-dependency-path: 'buildkit/go.sum'
+        cache: true
+      if: inputs.go
+
+    - run: echo "$extras" > .python-extras
+      shell: bash
+      env:
+        extras: ${{ inputs.python-extras }}
+
+    - id: setup-python
+      name: set up python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ inputs.python-version }}
+        cache: 'pip'
+        cache-dependency-path: |
+          .python-extras
+          pyproject.toml
+      if: inputs.python-version
+
+    - name: Install extra python modules
+      run: |
+        [ -n .python-extra ] && python -m pip install -r .python-extras
+      shell: bash
+      if: inputs.python-version
+
+    - run: python -m pip freeze --local
+      shell: bash
+      if: inputs.python-version

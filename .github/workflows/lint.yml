@@ -1,0 +1,25 @@
+name: Lint
+
+on:
+  workflow_call:
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - id: setup
+      name: Setup toolchains
+      uses: ./.github/actions/setup-env
+      with:
+        python-version: 3.11
+        python-extras: pre-commit
+
+    - name: Cache pre-commits
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-3|${{ env.goLocation }}|${{ hashFiles('.pre-commit-config.yaml') }}
+    - run: pre-commit run --show-diff-on-failure --color=always --all-files
+      env:
+        # We dont need to run actionlint on CI, because if GH runs it then we don't care.
+        SKIP: actionlint
