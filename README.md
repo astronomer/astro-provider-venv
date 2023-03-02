@@ -15,7 +15,7 @@ Let's say you want to be able to run an Airflow task against Snowflake's Snowpar
 
 With the addition of the ExternalPythonOperator in Airflow 2.4 this is possible, but managing the build process to get clean, quick Docker builds can take a lot of plumbing.
 
-This repo provides a nice packaged solution to it
+This repo provides a nice packaged solution to it, that plays nicely with Docker image caching.
 
 ## Synopsis
 
@@ -43,6 +43,8 @@ PYENV 3.8 snowpark snowpark-requirements.txt
 ```
 
 Note: That first `# syntax=` comment is important, don't leave it out!
+
+Read more about the [new `PYENV` instruction](#pyenv-docker-instruction)
 
 ### Use it in a DAG
 
@@ -92,8 +94,7 @@ with DAG(
     print_python() >> analyze(snowpark_task())
 ```
 
-
-## Requirements for Docker building
+## Requirements for building Docker images
 
 This needs the [buildkit](https://docs.docker.com/build/buildkit/) backend for Docker.
 
@@ -117,11 +118,13 @@ To enable docker BuildKit by default, set daemon configuration in /etc/docker/da
 
 And restart the Docker daemon.
 
-## Refernce
+## Reference
 
 ### `PYENV` Docker instruction
 
-The `PYENV` command has the following syntax:
+The `PYENV` command adds a Python Virtual Environment, running on the specified Python version to the docker image, and optionally install packages from a requirements.txt
+
+It has the following syntax:
 
 ```Dockerfile
 PYENV <python-version> <venv-name> [<reqs-file>]
@@ -133,13 +136,17 @@ The requirements file is optional, so one can install a bare Python environment 
 PYENV 3.10 venv1
 ```
 
+### `@task.venv` decorator
+
+TODO! Write the decorator, then fill out docs!
+
 ## In This Repo
 
-### []`buildkit/`](buildkit/)
+### [`buildkit/`](buildkit/)
 
 This contains the cusotm  Docker BuildKit frontend (see this [blog]( https://www.docker.com/blog/compiling-containers-dockerfiles-llvm-and-buildkit/) for details) adds a new custom command `PYENV` that can be used inside Dockerfiles to install new Python versions and virtual environments with custom dependencies.
 
-## [`provider/`](provider/)
+### [`provider/`](provider/)
 
 This contains an Apache Airflow provider that providers the `@task.venv` decorator.
 
