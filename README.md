@@ -7,7 +7,7 @@
   Apache Airflow virtual envs made easy
 </h1>
 <h3 align="center">
-  Making it eas to run tasks in isolated python virtual environments (venv) in Dockerfiles.
+  Making it easy to run tasks in isolated python virtual environments (venv) in Dockerfiles.
   Maintained with ❤️ by Astronomer.
 </h3>
 
