@@ -4,7 +4,7 @@
   </a>
 </p>
 <h1 align="center">
-  Apache Airflow Provider for easier VirtualEnv management
+  Apache Airflow virtual envs made easy
 </h1>
 <h3 align="center">
   Making it eas to run tasks in isolated python virtual environments (venv) in Dockerfiles.
@@ -135,11 +135,11 @@ PYENV 3.10 venv1
 
 ## In This Repo
 
-### `buildkit/`
+### []`buildkit/`](buildkit/)
 
 This contains the cusotm  Docker BuildKit frontend (see this [blog]( https://www.docker.com/blog/compiling-containers-dockerfiles-llvm-and-buildkit/) for details) adds a new custom command `PYENV` that can be used inside Dockerfiles to install new Python versions and virtual environments with custom dependencies.
 
-## `provider/`
+## [`provider/`](provider/)
 
 This contains an Apache Airflow provider that providers the `@task.venv` decorator.
 
