@@ -1,5 +1,5 @@
-REGISTRY ?= astronomer
-REPOSITORY ?= astro-runtime-frontend
+REGISTRY ?= quay.io/astronomer
+REPOSITORY ?= airflow-venvs-builder
 VERSION ?= latest
 
 # Setting SHELL to bash allows bash commands to be executed by recipes.
