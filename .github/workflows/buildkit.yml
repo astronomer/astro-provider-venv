@@ -20,16 +20,16 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
-    - id: setup
-      name: Setup toolchains
-      uses: ./.github/actions/setup-env
-      with:
-        go: true
+      - uses: actions/checkout@v3
+      - id: setup
+        name: Setup toolchains
+        uses: ./.github/actions/setup-env
+        with:
+          go: true
 
-    - id: test
-      run:  go test ./...
-      working-directory: buildkit/
+      - id: test
+        run:  go test ./...
+        working-directory: buildkit/
 
   lint:
     uses: ./.github/workflows/lint.yml
@@ -52,6 +52,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+      labels: ${{ steps.meta.outputs.labels }}
+      version: ${{ steps.meta.outputs.version }}
+      json: ${{ steps.meta.outputs.json }}
     steps:
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
@@ -65,11 +70,16 @@ jobs:
         id: meta
         uses: docker/metadata-action@v4
         with:
-          images: ghcr.io/${{ github.repository_owner }}/docker-with-airflow-venvs
+          images: ghcr.io/${{ github.repository_owner }}/airflow-extensions
+          labels: |
+            org.opencontainers.image.title=airflow-extensions
+            org.opencontainers.image.vendor=astronomer.io
           tags: |
             type=match,pattern=buildkit/(.*),group=1
+            type=match,pattern=buildkit/(v\d+)\.\d+\.\d+.*,group=1
             type=ref,event=branch
             type=ref,event=pr
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       -
@@ -83,10 +93,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # - id: build-docker-image
-      #   run:
-      #     make -C buildkit image-build
-      # # TODO: save docker image to GHCR registry?
 
   release:
     needs: [build, check]
@@ -97,5 +103,35 @@ jobs:
       packages: write
 
     steps:
-      - run: "false"
-      # TODO: docker push to quay.io?
+      - name: Login to quay.io (destination)
+        uses: docker/login-action@v2
+        with:
+          registry: quay.io
+          username: ${{ secrets.QUAY_USERNAME }}
+          password: ${{ secrets.QUAY_ROBOT_TOKEN }}
+
+      - name: Login to GitHub Container Registry (source)
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish to Quay.io
+        run: |
+          docker buildx imagetools create \
+            --tag quay.io/astronomer/airflow-extensions:${{ needs.build.outputs.version }} \
+            ${{ fromJSON(needs.build.outputs.json).tags[0] }}
+
+      - uses: actions/checkout@v3
+
+      - id: check-version
+        name: check package version
+        run: python .github/check-version.py
+
+      - name: Publish to Quay.io with major tag
+        # only if this is not a pre-release
+        if: ${{ ! steps.check-version.outputs.is_prerelease }}
+        run: |
+          docker buildx imagetools create \
+            --tag quay.io/astronomer/airflow-extensions:v${{ steps.check-version.outputs.major_ver }} \
+            ${{ fromJSON(needs.build.outputs.json).tags[0] }}
