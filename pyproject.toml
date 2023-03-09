@@ -4,7 +4,6 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "airflow-provider-venv"
-version = "0.0.1"
 authors = [
     {name = "Ash Berlin-Taylor", email = "ash_github@firemirror.com"},
     {name = "Ian Buss", email = "ian.buss@astronomer.io"},
@@ -17,6 +16,7 @@ classifiers = [
     "Framework :: Apache Airflow :: Provider",
 ]
 urls = {Homepage = "http://astronomer.io/"}
+dynamic = ["version"]
 requires-python = "~=3.7"
 dependencies = ["apache-airflow>=2.4"]
 
@@ -29,20 +29,37 @@ tests = [
 file = "README.md"
 content-type = "text/markdown"
 
-# [project.entry-points.apache_airflow_provider]
-# provider_info = "sample_provider.__init__:get_provider_info"
+[project.entry-points.apache_airflow_provider]
+provider_info = "astronomer.providers.venv:get_provider_info"
 
 [tool.setuptools]
-packages = [
-    "sample_provider",
-]
 include-package-data = false
 
+[tool.setuptools.dynamic]
+version = {attr = "astronomer.providers.venv.__version__"}
+
+[tool.setuptools.packages.find]
+where = ["provider"]
+
 [tool.ruff]
+fix = true
 line-length = 110
 target-version = "py37"
 extend-select = [
     "PGH", #pygrep-hooks
     "UP", # Pyupgrade
     "RUF100", # Unused noqa (auto-fixable)
+    "I",
+]
+
+[tool.pytest.ini_options]
+addopts = "--tb=short -v"
+filterwarnings = [
+    "ignore::DeprecationWarning:apispec.utils",
+    "ignore::DeprecationWarning:connexion.decorators.validation",
+    "ignore::DeprecationWarning:marshmallow_sqlalchemy.convert",
+    "ignore::DeprecationWarning:flask_sqlalchemy",
+    "ignore::DeprecationWarning:flask_appbuilder.filemanager",
+    "ignore::DeprecationWarning:flask_appbuilder.widgets",
+    "ignore::DeprecationWarning:pkg_resources",
 ]

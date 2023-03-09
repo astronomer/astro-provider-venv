@@ -26,7 +26,7 @@ jobs:
           # - '3.10'
           - '3.11'
         include:
-          # And for one build, upload the artifacts for _every_ PR/build
+          # And for one matrix job, upload the artifacts for every PR/build
           - python-verion: '3.11'
             platform: ubuntu-latest
             wheels-to-artifacts: true
@@ -42,20 +42,14 @@ jobs:
           build
           wheel
 
-    - run: "pip install -e '.[tests]' -v"
+    - run: "pip install '.[tests]' -v"
 
     - name: python tests
       run: python -m pytest
 
     - name: build wheel
-      run: python -m build
+      uses: hynek/build-and-inspect-python-package@v1
       # Don't build wheel here if we'd do a full build anyway
-      if: matrix.wheels-to-artifacts && (github.ref_type != 'tag' && github.ref != 'refs/heads/main' && !contains(github.event.pull_request.labels.*.name, 'Full Build'))
-
-    - uses: actions/upload-artifact@v3
-      with:
-        name: pypi_files-${{ matrix.python-version }}
-        path: dist
       if: matrix.wheels-to-artifacts && (github.ref_type != 'tag' && github.ref != 'refs/heads/main' && !contains(github.event.pull_request.labels.*.name, 'Full Build'))
 
   lint:
@@ -83,55 +77,7 @@ jobs:
     runs-on: ${{ matrix.os }}-latest
     steps:
       - uses: actions/checkout@v3
-
-      - id: setup-python
-        name: set up python
-        uses: actions/setup-python@v4
-        with:
-          # 3.11 isn't in the hosted tool cache, but all the others are, so we only need to add that one
-          python-version: 3.11
-
-      - run: pip install -U twine build 'black>=22.3.0,<23'
-
-      - name: build sdist
-        run: python -m build
-
-      - run: ls -altrh dist/
-        shell: bash
-
-      - run: twine check dist/*
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: pypi_files
-          path: dist
-
-  inspect-pypi-assets:
-    needs: [build]
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: get dist artifacts
-        uses: actions/download-artifact@v3
-        with:
-          name: pypi_files
-          path: dist
-
-      - name: list dist files
-        run: |
-         ls -lh dist/
-         echo "`ls dist | wc -l` files"
-      - name: extract and list sdist file
-        run: |
-         mkdir sdist-files
-         tar -xvf dist/*.tar.gz -C sdist-files
-         tree -a sdist-files
-      - name: extract and list wheel file
-        run: |
-         ls dist/*.whl | head -n 1
-         python -m zipfile --list `ls dist/*.whl | head -n 1`
+      - uses: hynek/build-and-inspect-python-package@v1
 
   release:
     needs: [build, check]
@@ -146,7 +92,8 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: check package version
+      - id: check-version
+        name: check package version
         run: python .github/check-version.py
 
       - run: pip install -U twine
@@ -154,7 +101,7 @@ jobs:
       - name: get dist artifacts
         uses: actions/download-artifact@v3
         with:
-          name: pypi_files
+          name: Packages
           path: dist
 
       - run: twine check dist/*
@@ -171,4 +118,4 @@ jobs:
           files: |
             dist/*
           generate_release_notes: true
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+          prerelease: ${{ steps.check-version.outputs.is_prerelease }}

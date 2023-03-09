@@ -94,6 +94,10 @@ with DAG(
     print_python() >> analyze(snowpark_task())
 ```
 
+## Requirements
+
+This needs Apache Airflow 2.4+ for the [ExternalPythonOperator] to work.
+
 ## Requirements for building Docker images
 
 This needs the [buildkit](https://docs.docker.com/build/buildkit/) backend for Docker.
@@ -175,3 +179,13 @@ RUN /usr/local/bin/python3.8 -m venv --system-site-packages /home/astro/.venv/sn
 ENV ASTRO_PYENV_snowpark /home/astro/.venv/snowpark/bin/python
 RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/snowpark/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/snowpark/requirements.txt
 ```
+
+The final part of this puzzle from the Airflow operator is to look up the path to `python` in the created venv using the `ASTRO_PYENV_*` environment variable:
+
+```python
+@task.external_python(python=os.environ["ASTRO_PYENV_snowpark"])
+def snowpark_task():
+    ...
+```
+
+[ExternalPythonOperator]: https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#externalpythonoperator
