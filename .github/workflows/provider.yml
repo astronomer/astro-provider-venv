@@ -87,11 +87,6 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: set up python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
       - id: check-version
         name: check package version
         run: python .github/check-version.py
@@ -104,13 +99,15 @@ jobs:
           name: Packages
           path: dist
 
-      - run: twine check dist/*
+      - run: pip install twine
+        if: ${{ ! steps.check-version.outputs.is_prerelease }}
 
       - name: upload to pypi
         run: twine upload dist/*
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.pypi_token }}
+        if: ${{ ! steps.check-version.outputs.is_prerelease }}
 
       - name: upload to github release
         uses: softprops/action-gh-release@v1
