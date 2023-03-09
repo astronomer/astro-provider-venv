@@ -87,17 +87,15 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - id: check-version
-        name: check package version
-        run: python .github/check-version.py
-
-      - run: pip install -U twine
-
       - name: get dist artifacts
         uses: actions/download-artifact@v3
         with:
           name: Packages
           path: dist
+
+      - id: check-version
+        name: check package version
+        run: python .github/check-version.py
 
       - run: pip install twine
         if: ${{ ! steps.check-version.outputs.is_prerelease }}

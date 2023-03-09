@@ -4,8 +4,8 @@ Check the version we are building matches the version from `GITHUB_REF` environm
 """
 import os
 import re
-import subprocess
 import sys
+from pathlib import Path
 
 from packaging.version import Version
 
@@ -24,17 +24,9 @@ def main() -> int:
     ver = Version(version)
 
     if match["app"] == "provider":
-        project_version = subprocess.check_output(
-            [
-                "python",
-                "-W",
-                "ignore",
-                "-c",
-                "from setuptools import setup; setup()",
-                "--version",
-            ],
-            encoding="utf-8",
-        ).strip()
+        filename = next((Path(__file__).parents[1] / "dist").glob("*.whl"))
+        # Wheel file spec guarantees that this will be the version. So says TP Chung
+        project_version = filename.name.split("-")[1]
 
         if project_version == version:
             print(f"✓ GITHUB_REF matches version {project_version!r}")
