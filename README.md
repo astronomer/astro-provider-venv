@@ -35,7 +35,7 @@ apache-airflow-providers-snowflake
 ### Use our custom Docker build frontend
 
 ```Dockerfile
-# syntax=quay.io/astronomer/airflow-extensions:v1.0.0
+# syntax=quay.io/astronomer/airflow-extensions:v1
 
 FROM quay.io/astronomer/astro-runtime:7.2.0-base
 
