@@ -3,8 +3,8 @@ __version__ = "1.0.0a2"
 
 def get_provider_info():
     return {
-        "package-name": "airflow-provider-venv",
-        "name": "airflow-provider-venv",
+        "package-name": "astro-providers-venv",
+        "name": "astro-providers-venv",
         "description": "Easily create and use Python Virtualenvs in Apache Airflow",
         "task-decorators": [
             {

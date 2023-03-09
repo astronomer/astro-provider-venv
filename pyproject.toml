@@ -3,7 +3,7 @@ requires = ["setuptools", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "airflow-provider-venv"
+name = "astro-providers-venv"
 authors = [
     {name = "Ash Berlin-Taylor", email = "ash_github@firemirror.com"},
     {name = "Ian Buss", email = "ian.buss@astronomer.io"},
@@ -15,7 +15,7 @@ classifiers = [
     "Framework :: Apache Airflow",
     "Framework :: Apache Airflow :: Provider",
 ]
-urls = {Homepage = "http://astronomer.io/"}
+urls = {Source = "https://github.com/astronomer/astro-providers-venv"}
 dynamic = ["version"]
 requires-python = "~=3.7"
 dependencies = ["apache-airflow>=2.4"]
