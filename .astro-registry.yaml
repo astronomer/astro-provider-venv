@@ -2,10 +2,10 @@
 # Registry as well as top-level Provider metadata. The file should not be packaged and solely lives in the
 # repo. The modules listed should pertain to latest, released version of the repo.
 
-package-name: astro-providers-venv
+package-name: astro-provider-venv
 display-name: Venv Provider
 description: Easily create and use Python Virtualenvs in Apache Airflow
-docs_url: https://github.com/astronomer/astro-providers-venv/blob/main/README.md
+docs_url: https://github.com/astronomer/astro-provider-venv/blob/main/README.md
 
 # The next sections should be organized by module type (e.g. operators, hooks, functions, decorators, etc.).
 #
