@@ -32,7 +32,7 @@ RUN ln -s /usr/local/include/python3.8 /usr/local/include/python3.8m
 USER astro
 RUN mkdir -p /home/astro/.venv/venv1
 COPY reqs/venv1.txt /home/astro/.venv/venv1/requirements.txt
-RUN /usr/local/bin/python3.8 -m venv --system-site-packages /home/astro/.venv/venv1
+RUN /usr/local/bin/python3.8 -m venv /home/astro/.venv/venv1
 ENV ASTRO_PYENV_venv1 /home/astro/.venv/venv1/bin/python
 RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
 COPY foo bar
@@ -48,7 +48,7 @@ RUN ln -s /usr/local/include/python3.10 /usr/local/include/python3.10m
 USER astro
 RUN mkdir -p /home/astro/.venv/venv2
 
-RUN /usr/local/bin/python3.10 -m venv --system-site-packages /home/astro/.venv/venv2
+RUN /usr/local/bin/python3.10 -m venv /home/astro/.venv/venv2
 ENV ASTRO_PYENV_venv2 /home/astro/.venv/venv2/bin/python
 RUN mkdir /tmp/bar
 `

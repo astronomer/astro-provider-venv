@@ -3,12 +3,13 @@ package transform
 import (
 	"bytes"
 	"fmt"
-	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
-	"github.com/docker/distribution/reference"
-	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"regexp"
 	"strings"
 	"text/template"
+
+	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
+	"github.com/docker/distribution/reference"
+	"github.com/moby/buildkit/frontend/dockerfile/parser"
 )
 
 const (
@@ -25,7 +26,7 @@ USER astro
 `
 	virtualEnvTemplate = `RUN mkdir -p /home/astro/.venv/{{.Name}}
 {{if .RequirementsFile}}COPY {{.RequirementsFile}} /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
-RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv --system-site-packages /home/astro/.venv/{{.Name}}
+RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv /home/astro/.venv/{{.Name}}
 ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 {{if .RequirementsFile}}RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 `
