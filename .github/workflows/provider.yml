@@ -5,13 +5,13 @@ on:
     branches:
       - main
     paths-ignore:
-      - buildkit
+      - buildkit/**
       - '.github/workflows/buildkit.yml'
     tags:
       - 'provider/**'
   pull_request:
     paths-ignore:
-      - buildkit
+      - buildkit/**
       - '.github/workflows/buildkit.yml'
 jobs:
   test:

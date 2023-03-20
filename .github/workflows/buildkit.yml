@@ -4,7 +4,7 @@ on:
     branches:
       - main
     paths:
-      - buildkit
+      - buildkit/**
       - .github/workflows/buildkit.yml
       - .github/workflows/lint.yml
       - .github/actions/setup-env'
@@ -12,7 +12,7 @@ on:
       - 'buildkit/**'
   pull_request:
     paths:
-      - buildkit/
+      - buildkit/**
       - .github/workflows/buildkit.yml
       - .github/workflows/lint.yml
       - .github/actions/setup-env
