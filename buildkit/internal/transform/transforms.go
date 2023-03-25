@@ -32,9 +32,10 @@ RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv /home/astro/.venv/{{.Name
 ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 {{if .RequirementsFile}}RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 `
-	fromCommand  = "FROM"
-	argCommand   = "ARG"
-	pyenvCommand = "PYENV"
+	fromCommand       = "FROM"
+	argCommand        = "ARG"
+	pyenvCommand      = "PYENV"
+	astroRuntimeImage = "quay.io/astronomer/astro-runtime"
 )
 
 var (
@@ -82,8 +83,8 @@ func Transform(dockerFile []byte, buildArgs map[string]string) (*parser.Node, *p
 			case fromCommand:
 				// finish preamble when we encounter the first FROM
 
-				// Try to use the astro-runtime base (non-onbuild) image. If we have any error, "fail
-				// safe" and leave it // unmodified.
+				// Try to use the astro-runtime base (non-onbuild) image. If we have any error, "fail safe"
+				// and leave it unmodified.
 				_ = ensureValidBaseImage(node, buildArgs)
 				adjustedLine = -node.EndLine
 				inPreamble = false
@@ -263,7 +264,7 @@ func ensureValidBaseImage(node *parser.Node, buildArgs map[string]string) error 
 		return err
 	}
 
-	if ref.Name() == "quay.io/astronomer/astro-runtime" {
+	if ref.Name() == astroRuntimeImage {
 		if tagged, ok := ref.(reference.NamedTagged); ok {
 			if !strings.HasSuffix(tagged.Tag(), "-base") {
 				ref, _ = reference.WithTag(ref, tagged.Tag()+"-base")

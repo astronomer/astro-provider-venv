@@ -15,7 +15,7 @@ import (
 
 const buildArgPrefix = "build-arg:"
 
-func filter(opt map[string]string, key string) map[string]string {
+func filterByPrefix(opt map[string]string, key string) map[string]string {
 	m := map[string]string{}
 	for k, v := range opt {
 		if strings.HasPrefix(k, key) {
@@ -26,7 +26,7 @@ func filter(opt map[string]string, key string) map[string]string {
 }
 
 func Build(ctx context.Context, c client.Client) (*client.Result, error) {
-	buildArgs := filter(c.BuildOpts().Opts, buildArgPrefix)
+	buildArgs := filterByPrefix(c.BuildOpts().Opts, buildArgPrefix)
 
 	// Process user dockerfile and wrap in standard astro runtime boilerplate
 	dockerfileRaw, err := dockerfile.Read(ctx, c)
