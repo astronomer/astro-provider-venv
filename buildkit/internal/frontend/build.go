@@ -3,6 +3,7 @@ package frontend
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/EricHripko/buildkit-fdk/pkg/dtp"
 	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
@@ -12,13 +13,27 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/client"
 )
 
+const buildArgPrefix = "build-arg:"
+
+func filter(opt map[string]string, key string) map[string]string {
+	m := map[string]string{}
+	for k, v := range opt {
+		if strings.HasPrefix(k, key) {
+			m[strings.TrimPrefix(k, key)] = v
+		}
+	}
+	return m
+}
+
 func Build(ctx context.Context, c client.Client) (*client.Result, error) {
+	buildArgs := filter(c.BuildOpts().Opts, buildArgPrefix)
+
 	// Process user dockerfile and wrap in standard astro runtime boilerplate
 	dockerfileRaw, err := dockerfile.Read(ctx, c)
 	if err != nil {
 		return nil, err
 	}
-	preamble, transformedAST, err := transform.Transform(dockerfileRaw)
+	preamble, transformedAST, err := transform.Transform(dockerfileRaw, buildArgs)
 	if err != nil {
 		return nil, err
 	}

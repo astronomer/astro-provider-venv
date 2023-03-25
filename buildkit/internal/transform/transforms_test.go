@@ -1,10 +1,11 @@
 package transform
 
 import (
+	"testing"
+
 	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"testing"
 )
 
 func TestTransformPyenvs(t *testing.T) {
@@ -52,12 +53,70 @@ RUN /usr/local/bin/python3.10 -m venv /home/astro/.venv/venv2
 ENV ASTRO_PYENV_venv2 /home/astro/.venv/venv2/bin/python
 RUN mkdir /tmp/bar
 `
-	preamble, body, err := Transform([]byte(testDockerfile))
+	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{})
 	require.NoError(t, err)
 	assert.NotNil(t, preamble)
 	assert.NotNil(t, body)
 	bodyText, err := dockerfile.Print(body)
 	assert.Equal(t, expectedDockerfile, bodyText)
+	preambleText, err := dockerfile.Print(preamble)
+	assert.Equal(t, expectedPreamble, preambleText)
+}
+
+func TestTransformsBuildArgsFromDockerfile(t *testing.T) {
+	testDockerfile := `# syntax=astronomer/astro-runtime
+ARG ver=7.0.0
+FROM quay.io/astronomer/astro-runtime:${ver}
+`
+	expectedPreamble := `
+ARG ver=7.0.0
+FROM quay.io/astronomer/astro-runtime:7.0.0-base
+`
+
+	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{})
+	require.NoError(t, err)
+	assert.NotNil(t, preamble)
+	assert.NotNil(t, body)
+	bodyText, err := dockerfile.Print(body)
+	assert.Equal(t, "", bodyText)
+	preambleText, err := dockerfile.Print(preamble)
+	assert.Equal(t, expectedPreamble, preambleText)
+}
+
+func TestTransformsBuildArgsProvided(t *testing.T) {
+	testDockerfile := `# syntax=astronomer/astro-runtime
+ARG ver=7.0.0
+FROM quay.io/astronomer/astro-runtime:${ver}
+`
+	expectedPreamble := `
+ARG ver=7.0.0
+FROM quay.io/astronomer/astro-runtime:7.4.0-base
+`
+
+	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{"ver": "7.4.0"})
+	require.NoError(t, err)
+	assert.NotNil(t, preamble)
+	assert.NotNil(t, body)
+	bodyText, err := dockerfile.Print(body)
+	assert.Equal(t, "", bodyText)
+	preambleText, err := dockerfile.Print(preamble)
+	assert.Equal(t, expectedPreamble, preambleText)
+}
+
+func TestTransformsNonRuntimeLeftAlone(t *testing.T) {
+	testDockerfile := `# syntax=astronomer/astro-runtime
+FROM astro-runtime:7.0.0
+`
+	expectedPreamble := `
+FROM astro-runtime:7.0.0
+`
+
+	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{"ver": "7.4.0"})
+	require.NoError(t, err)
+	assert.NotNil(t, preamble)
+	assert.NotNil(t, body)
+	bodyText, err := dockerfile.Print(body)
+	assert.Equal(t, "", bodyText)
 	preambleText, err := dockerfile.Print(preamble)
 	assert.Equal(t, expectedPreamble, preambleText)
 }

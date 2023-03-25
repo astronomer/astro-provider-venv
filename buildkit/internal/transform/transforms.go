@@ -9,7 +9,9 @@ import (
 
 	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
 	"github.com/docker/distribution/reference"
+	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
+	"github.com/moby/buildkit/frontend/dockerfile/shell"
 )
 
 const (
@@ -31,6 +33,7 @@ ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 {{if .RequirementsFile}}RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 `
 	fromCommand  = "FROM"
+	argCommand   = "ARG"
 	pyenvCommand = "PYENV"
 )
 
@@ -59,7 +62,7 @@ func newTransformer() *Transformer {
 
 // Transform processes the custom dockerfile and extracts the first FROM and converts the rest of the user dockerfile
 // into standard Docker commands
-func Transform(dockerFile []byte) (*parser.Node, *parser.Node, error) {
+func Transform(dockerFile []byte, buildArgs map[string]string) (*parser.Node, *parser.Node, error) {
 	ast, err := dockerfile.Parse(dockerFile)
 	if err != nil {
 		return nil, nil, err
@@ -70,6 +73,26 @@ func Transform(dockerFile []byte) (*parser.Node, *parser.Node, error) {
 	inPreamble := true
 	adjustedLine := 0
 	for _, node := range ast.Children {
+		if inPreamble {
+			switch strings.ToUpper(node.Value) {
+			case argCommand:
+				if err = processArg(node, buildArgs); err != nil {
+					return nil, nil, err
+				}
+			case fromCommand:
+				// finish preamble when we encounter the first FROM
+
+				// Try to use the astro-runtime base (non-onbuild) image. If we have any error, "fail
+				// safe" and leave it // unmodified.
+				_ = ensureValidBaseImage(node, buildArgs)
+				adjustedLine = -node.EndLine
+				inPreamble = false
+			case pyenvCommand:
+				return nil, nil, fmt.Errorf("%s cannot appear before the first FROM", pyenvCommand)
+			}
+			preamble.AddChild(node, node.StartLine, node.EndLine)
+			continue
+		}
 		switch strings.ToUpper(node.Value) {
 		case pyenvCommand:
 			pyenvNodes, err := transformer.processPyenv(node)
@@ -83,21 +106,32 @@ func Transform(dockerFile []byte) (*parser.Node, *parser.Node, error) {
 			}
 			adjustedLine += lineOffset
 		default:
-			if inPreamble {
-				preamble.AddChild(node, node.StartLine, node.EndLine)
-				if strings.ToUpper(node.Value) == fromCommand {
-					// finish preamble when we encounter the first FROM
-					// TODO: validate image here
-					adjustedLine = -node.EndLine
-					inPreamble = false
-				}
-			} else {
-				lineDiff := node.EndLine - node.StartLine
-				transformedAst.AddChild(node, adjustedLine+1, lineDiff+adjustedLine+1)
-			}
+			lineDiff := node.EndLine - node.StartLine
+			transformedAst.AddChild(node, adjustedLine+1, lineDiff+adjustedLine+1)
 		}
 	}
 	return preamble, transformedAst, nil
+}
+
+func processArg(node *parser.Node, buildArgs map[string]string) error {
+	inst, err := instructions.ParseInstruction(node)
+	if err != nil {
+		return err
+	}
+	if n, ok := inst.(*instructions.ArgCommand); ok {
+		for _, pair := range n.Args {
+			if pair.Value == nil {
+				continue
+			}
+			if _, exists := buildArgs[pair.Key]; !exists {
+				buildArgs[pair.Key] = *pair.Value
+			}
+		}
+	} else {
+		return fmt.Errorf("not a ARG instruction %q", node.Original)
+	}
+
+	return nil
 }
 
 func (r *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
@@ -199,14 +233,42 @@ func (r *Transformer) addVirtualEnvironment(venv *virtualEnv) (*parser.Node, err
 	return parsedNodes.AST, nil
 }
 
-func ensureValidBaseImage(from *parser.Node) error {
-	ref, err := reference.ParseNormalizedNamed(from.Value)
+func ensureValidBaseImage(node *parser.Node, buildArgs map[string]string) error {
+	var img string
+
+	inst, err := instructions.ParseInstruction(node)
+	if err != nil {
+		return nil
+	}
+	if stage, ok := inst.(*instructions.Stage); ok {
+		img = stage.BaseName
+	} else {
+		return nil
+	}
+
+	// TODO: To get it "back" to a node, we need to handle `--platform` here correctly :(
+	imgNode := node.Next
+
+	if strings.Contains(img, "$") {
+		// Interpolate build args
+		lexer := shell.NewLex('\\')
+		if img, err = lexer.ProcessWordWithMap(img, buildArgs); err != nil {
+			return err
+		}
+
+	}
+
+	ref, err := reference.ParseNormalizedNamed(img)
 	if err != nil {
 		return err
 	}
-	if strings.HasPrefix(ref.Name(), "quay.io/astronomer/astro-runtime") {
-		if !strings.HasSuffix(ref.Name(), "-base") {
-			from.Value = ref.Name() + "-base"
+
+	if ref.Name() == "quay.io/astronomer/astro-runtime" {
+		if tagged, ok := ref.(reference.NamedTagged); ok {
+			if !strings.HasSuffix(tagged.Tag(), "-base") {
+				ref, _ = reference.WithTag(ref, tagged.Tag()+"-base")
+				imgNode.Value = ref.String()
+			}
 		}
 	}
 	return nil
