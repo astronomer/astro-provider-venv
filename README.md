@@ -18,33 +18,6 @@ With the addition of the ExternalPythonOperator in Airflow 2.4 this is possible,
 This repo provides a nice packaged solution to it, that plays nicely with Docker image caching.
 
 ## Synopsis
-
-### Caveats
-#### Novel Python Syntax
-If you're using a virtual environment with a Python version greater than Airflow's Python version, Airflow won't be able to parse syntax unique to the newer  Python version. For example, if your Airflow is running Python 3.9, and you create a virtual environment using Python 3.10, you won't be able to use Python 3.10's structural pattern matching, because Airflow's Python 3.9 doesn't recognize `match` syntax, so it won't be able to parse the DAG.
-
-#### Imports for virtual environments must be done within the task scope
-Consider the below Snowpark example. Snowpark _must_ be imported from the task scope and not the DAG scope:
-
-```python
-@task.venv("snowpark")
-def snowpark_task():
-    from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
-    from snowflake.snowpark import Session
-
-    print(f"My python version is {sys.version}")
-
-    hook = SnowflakeHook("snowflake_default")
-    conn_params = hook._get_conn_params()
-    session = Session.builder.configs(conn_params).create()
-    tables = session.sql("show tables").collect()
-    print(tables)
-
-    df_table = session.table("sample_product_data")
-    print(df_table.show())
-    return df_table.to_pandas()
-```
-
 ### Create a requirements.txt file
 
 For example, `snowpark-requirements.txt`
@@ -162,8 +135,33 @@ with DAG(
 ```
 
 ## Requirements
-
 This needs Apache Airflow 2.4+ for the [ExternalPythonOperator] to work.
+
+### Caveats
+#### Novel Python Syntax
+If you're using a virtual environment with a Python version greater than Airflow's Python version, Airflow won't be able to parse syntax unique to the newer  Python version. For example, if your Airflow is running Python 3.9, and you create a virtual environment using Python 3.10, you won't be able to use Python 3.10's structural pattern matching, because Airflow's Python 3.9 doesn't recognize `match` syntax, so it won't be able to parse the DAG.
+
+#### Imports for virtual environments must be done within the task scope
+Consider the below Snowpark example. Snowpark _must_ be imported from the task scope and not the DAG scope:
+
+```python
+@task.venv("snowpark")
+def snowpark_task():
+    from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+    from snowflake.snowpark import Session
+
+    print(f"My python version is {sys.version}")
+
+    hook = SnowflakeHook("snowflake_default")
+    conn_params = hook._get_conn_params()
+    session = Session.builder.configs(conn_params).create()
+    tables = session.sql("show tables").collect()
+    print(tables)
+
+    df_table = session.table("sample_product_data")
+    print(df_table.show())
+    return df_table.to_pandas()
+```
 
 ## Requirements for building Docker images
 
