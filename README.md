@@ -18,7 +18,6 @@ With the addition of the ExternalPythonOperator in Airflow 2.4 this is possible,
 This repo provides a nice packaged solution to it, that plays nicely with Docker image caching.
 
 ## Synopsis
-
 ### Create a requirements.txt file
 
 For example, `snowpark-requirements.txt`
@@ -94,9 +93,75 @@ with DAG(
     print_python() >> analyze(snowpark_task())
 ```
 
-## Requirements
+If you'd prefer not to use TaskFlow, you can directly use Python's ExternalPythonOperator instead. The example DAG below assumes a Dockerfile with the line `PYENV 3.10 P310` (the "P310" is the name of the virtual environment):
 
+```python
+import os
+import sys
+from datetime import datetime
+
+from airflow import DAG
+from airflow.operators.python import ExternalPythonOperator
+
+def func():
+    import numpy as np
+    import pandas as pd
+    print(f"python version: {sys.version}")
+    df = pd.DataFrame(np.random.randint(0,2,size=(2, 2)), columns=["column1", "column2"])
+    item = df.get("column1")[0]
+    if item == 0:
+        print("We got nothin'.")
+    elif item == 1:
+        print("We got 1!")
+    else:
+        raise ValueError("Something went horribly wrong!")
+
+with DAG(
+    dag_id="pandas_with_python_310",
+    schedule_interval="@daily",
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
+    default_args={
+        "retries": 2,  # If a task fails, it will retry 2 times.
+    },
+    tags=["example"],
+):
+    task = ExternalPythonOperator(
+        task_id="p310",
+        python=os.environ["ASTRO_PYENV_p310"],
+        python_callable=func
+    )
+
+```
+
+## Requirements
 This needs Apache Airflow 2.4+ for the [ExternalPythonOperator] to work.
+
+### Caveats
+#### Novel Python Syntax
+If you're using a virtual environment with a Python version greater than Airflow's Python version, Airflow won't be able to parse syntax unique to the newer  Python version. For example, if your Airflow is running Python 3.9, and you create a virtual environment using Python 3.10, you won't be able to use Python 3.10's structural pattern matching, because Airflow's Python 3.9 doesn't recognize `match` syntax, so it won't be able to parse the DAG.
+
+#### Imports for virtual environments must be done within the task scope
+Consider the below Snowpark example. Snowpark _must_ be imported from the task scope and not the DAG scope:
+
+```python
+@task.venv("snowpark")
+def snowpark_task():
+    from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+    from snowflake.snowpark import Session
+
+    print(f"My python version is {sys.version}")
+
+    hook = SnowflakeHook("snowflake_default")
+    conn_params = hook._get_conn_params()
+    session = Session.builder.configs(conn_params).create()
+    tables = session.sql("show tables").collect()
+    print(tables)
+
+    df_table = session.table("sample_product_data")
+    print(df_table.show())
+    return df_table.to_pandas()
+```
 
 ## Requirements for building Docker images
 
@@ -144,7 +209,13 @@ PYENV 3.10 venv1
 
 ### `@task.venv` decorator
 
-TODO! Write the decorator, then fill out docs!
+The `@task.venv` decorator wraps the [ExternalPythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#externalpythonoperator). The decorator does a few things:
+1. It assigns the decorated function as the `ExternalPythonOperator`'s callable
+2. It uses the string passed to the decorator to look up the absolute path of the virtual environment, and passes that path to the `ExternalPythonOperator`'s `python` parameter.
+   1. For example, `@task.venv("python-310")` would be analagous to `ExternalPythonOperator(python="python-310", ...)`.
+   2. Note that the string passed to `@task.venv` must match the virtual environment name in the Dockerfile's `PYENV` command.
+      1. That is, if the Dockerfile has the line `PYENV 3.10 python-310`, tasks must use `@task.venv("python-310")` to run in that virtual environment.
+3. It accepts any arbitrary `kwargs` that a `ExternalPythonOperator` would otherwise accept.
 
 ## In This Repo
 
