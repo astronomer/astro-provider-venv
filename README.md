@@ -212,7 +212,7 @@ PYENV 3.10 venv1
 ### `@task.venv` decorator
 
 The `@task.venv` decorator wraps the [ExternalPythonOperator](https://airflow.apache.org/docs/apache-airflow/stable/howto/operator/python.html#externalpythonoperator). The decorator does a few things:
-1. It assigns the decorated function as the 'ExternalPythonOperator`'s callable
+1. It assigns the decorated function as the `ExternalPythonOperator`'s callable
 2. It assigns the string passed to the decorator to the `ExternalPythonOperator`'s `python` parameter.
    1. For example, `@task.venv("python-310")` would be analagous to `ExternalPythonOperator(python="python-310", ...)`.
    2. Note that the string passed to `@task.venv` must match the virtual environment name in the Dockerfile's `PYENV` command.
