@@ -165,7 +165,7 @@ The `# syntax` line tells buildkit to user our Build frontend to process the Doc
 The example Dockerfile above gets converted into roughly the following Dockerfile:
 
 ```Dockerfile
-# syntax=quay.io/astronomer/airflow-extensions:v1
+# syntax=docker/dockerfile:1
 
 FROM quay.io/astronomer/astro-runtime:7.2.0
 
