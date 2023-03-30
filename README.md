@@ -162,9 +162,13 @@ This contains an Apache Airflow provider that providers the `@task.venv` decorat
 
 The `# syntax` line tells buildkit to user our Build frontend to process the Dockerfile into instructions.
 
-The example Dockerfile above gets converted into roughly following instructions
+The example Dockerfile above gets converted into roughly the following Dockerfile:
 
 ```Dockerfile
+# syntax=docker/dockerfile:1
+
+FROM quay.io/astronomer/astro-runtime:7.2.0
+
 USER root
 COPY --link --from=python:3.8-slim /usr/local/bin/*3.8* /usr/local/bin/
 COPY --link --from=python:3.8-slim /usr/local/include/python3.8* /usr/local/include/python3.8
