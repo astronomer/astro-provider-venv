@@ -36,6 +36,9 @@ COPY reqs/venv1.txt /home/astro/.venv/venv1/requirements.txt
 RUN /usr/local/bin/python3.8 -m venv /home/astro/.venv/venv1
 ENV ASTRO_PYENV_venv1 /home/astro/.venv/venv1/bin/python
 RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
+USER root
+RUN chown -R astro:astro /home/astro/.cache
+USER astro
 COPY foo bar
 USER root
 COPY --link --from=python:3.10-slim /usr/local/bin/*3.10* /usr/local/bin/
@@ -46,6 +49,9 @@ COPY --link --from=python:3.10-slim /usr/local/lib/python3.10 /usr/local/lib/pyt
 RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.10 /usr/local/include/python3.10m
+USER astro
+USER root
+RUN chown -R astro:astro /home/astro/.cache
 USER astro
 RUN mkdir -p /home/astro/.venv/venv2
 
