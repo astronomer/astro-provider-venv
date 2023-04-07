@@ -31,7 +31,11 @@ USER astro
 RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv /home/astro/.venv/{{.Name}}
 ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 {{if .RequirementsFile}}RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
+{{if .RequirementsFile}}USER root{{end}}
+{{if .RequirementsFile}}RUN chown -R astro:astro /home/astro/.cache{{end}}
+{{if .RequirementsFile}}USER astro{{end}}
 `
+
 	fromCommand       = "FROM"
 	argCommand        = "ARG"
 	pyenvCommand      = "PYENV"
