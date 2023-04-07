@@ -57,6 +57,9 @@ RUN mkdir -p /home/astro/.venv/venv2
 
 RUN /usr/local/bin/python3.10 -m venv /home/astro/.venv/venv2
 ENV ASTRO_PYENV_venv2 /home/astro/.venv/venv2/bin/python
+USER root
+RUN chown -R astro:astro /home/astro/.cache
+USER astro
 RUN mkdir /tmp/bar
 `
 	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{})
