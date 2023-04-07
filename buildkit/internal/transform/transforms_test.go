@@ -50,9 +50,6 @@ RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.10 /usr/local/include/python3.10m
 USER astro
-USER root
-RUN chown -R astro:astro /home/astro/.cache
-USER astro
 RUN mkdir -p /home/astro/.venv/venv2
 
 RUN /usr/local/bin/python3.10 -m venv /home/astro/.venv/venv2
