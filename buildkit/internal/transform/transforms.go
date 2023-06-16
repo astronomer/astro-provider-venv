@@ -27,7 +27,7 @@ RUN ln -s /usr/local/include/python{{.PythonMajorMinor}} /usr/local/include/pyth
 USER astro
 `
 	virtualEnvTemplate = `RUN mkdir -p /home/astro/.cache/pip /home/astro/.venv/{{.Name}}
-  {{if .RequirementsFile}}COPY --chown={{.AstroUid}}:0 {{.RequirementsFile}} /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
+{{if .RequirementsFile}}COPY --chown={{.AstroUid}}:0 {{.RequirementsFile}} /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv /home/astro/.venv/{{.Name}}
 ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 {{if .RequirementsFile}}RUN --mount=type=cache,uid={{.AstroUid}},gid=0,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
