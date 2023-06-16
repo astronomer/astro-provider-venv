@@ -22,11 +22,11 @@ ARG baseimage
 FROM ${baseimage}
 `
 	expectedDockerfile := `USER root
-COPY --link --from=python:3.8-slim /usr/local/bin/*3.8* /usr/local/bin/
-COPY --link --from=python:3.8-slim /usr/local/include/python3.8* /usr/local/include/python3.8
-COPY --link --from=python:3.8-slim /usr/local/lib/pkgconfig/*3.8* /usr/local/lib/pkgconfig/
-COPY --link --from=python:3.8-slim /usr/local/lib/*3.8*.so* /usr/local/lib/
-COPY --link --from=python:3.8-slim /usr/local/lib/python3.8 /usr/local/lib/python3.8
+COPY --link --from=python:3.8-slim-bullseye /usr/local/bin/*3.8* /usr/local/bin/
+COPY --link --from=python:3.8-slim-bullseye /usr/local/include/python3.8* /usr/local/include/python3.8
+COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/pkgconfig/*3.8* /usr/local/lib/pkgconfig/
+COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/*3.8*.so* /usr/local/lib/
+COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/python3.8 /usr/local/lib/python3.8
 RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.8 /usr/local/include/python3.8m
@@ -38,11 +38,11 @@ ENV ASTRO_PYENV_venv1 /home/astro/.venv/venv1/bin/python
 RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
 COPY foo bar
 USER root
-COPY --link --from=python:3.10-slim /usr/local/bin/*3.10* /usr/local/bin/
-COPY --link --from=python:3.10-slim /usr/local/include/python3.10* /usr/local/include/python3.10
-COPY --link --from=python:3.10-slim /usr/local/lib/pkgconfig/*3.10* /usr/local/lib/pkgconfig/
-COPY --link --from=python:3.10-slim /usr/local/lib/*3.10*.so* /usr/local/lib/
-COPY --link --from=python:3.10-slim /usr/local/lib/python3.10 /usr/local/lib/python3.10
+COPY --link --from=python:3.10-slim-bullseye /usr/local/bin/*3.10* /usr/local/bin/
+COPY --link --from=python:3.10-slim-bullseye /usr/local/include/python3.10* /usr/local/include/python3.10
+COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/pkgconfig/*3.10* /usr/local/lib/pkgconfig/
+COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/*3.10*.so* /usr/local/lib/
+COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/python3.10 /usr/local/lib/python3.10
 RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.10 /usr/local/include/python3.10m
