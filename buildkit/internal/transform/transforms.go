@@ -26,11 +26,11 @@ RUN /sbin/ldconfig /usr/local/lib
 RUN ln -s /usr/local/include/python{{.PythonMajorMinor}} /usr/local/include/python{{.PythonMajorMinor}}m
 USER astro
 `
-	virtualEnvTemplate = `RUN mkdir -p /home/astro/.venv/{{.Name}}
-{{if .RequirementsFile}}COPY {{.RequirementsFile}} /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
+	virtualEnvTemplate = `RUN mkdir -p /home/astro/.cache/pip /home/astro/.venv/{{.Name}}
+{{if .RequirementsFile}}COPY --chown={{.AstroUid}}:0 {{.RequirementsFile}} /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 RUN /usr/local/bin/python{{.PythonMajorMinor}} -m venv /home/astro/.venv/{{.Name}}
 ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
-{{if .RequirementsFile}}RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
+{{if .RequirementsFile}}RUN --mount=type=cache,uid={{.AstroUid}},gid=0,target=/home/astro/.cache/pip /home/astro/.venv/{{.Name}}/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/{{.Name}}/requirements.txt{{end}}
 `
 	fromCommand       = "FROM"
 	argCommand        = "ARG"
@@ -38,6 +38,8 @@ ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 	astroRuntimeImage = "quay.io/astronomer/astro-runtime"
 
 	defaultImageFlavour = "slim-bullseye"
+	// Sadly for the `RUN --mount,uid=$uid` we need to use a numeric ID.
+	defaultAstroUid = 50000
 )
 
 var (
@@ -229,9 +231,18 @@ func (r *Transformer) addVirtualEnvironment(venv *virtualEnv) (*parser.Node, err
 		return nil, err
 	}
 	buf := &bytes.Buffer{}
-	if err := tpl.Execute(buf, venv); err != nil {
+	params := struct {
+		*virtualEnv
+		AstroUid int
+	}{
+		venv,
+		defaultAstroUid,
+	}
+
+	if err := tpl.Execute(buf, params); err != nil {
 		return nil, err
 	}
+
 	parsedNodes, err := parser.Parse(buf)
 	if err != nil {
 		return nil, err

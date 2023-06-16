@@ -31,11 +31,11 @@ RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.8 /usr/local/include/python3.8m
 USER astro
-RUN mkdir -p /home/astro/.venv/venv1
-COPY reqs/venv1.txt /home/astro/.venv/venv1/requirements.txt
+RUN mkdir -p /home/astro/.cache/pip /home/astro/.venv/venv1
+COPY --chown=50000:0 reqs/venv1.txt /home/astro/.venv/venv1/requirements.txt
 RUN /usr/local/bin/python3.8 -m venv /home/astro/.venv/venv1
 ENV ASTRO_PYENV_venv1 /home/astro/.venv/venv1/bin/python
-RUN --mount=type=cache,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
+RUN --mount=type=cache,uid=50000,gid=0,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
 COPY foo bar
 USER root
 COPY --link --from=python:3.10-slim-bullseye /usr/local/bin/*3.10* /usr/local/bin/
@@ -47,7 +47,7 @@ RUN /sbin/ldconfig /usr/local/lib
 
 RUN ln -s /usr/local/include/python3.10 /usr/local/include/python3.10m
 USER astro
-RUN mkdir -p /home/astro/.venv/venv2
+RUN mkdir -p /home/astro/.cache/pip /home/astro/.venv/venv2
 
 RUN /usr/local/bin/python3.10 -m venv /home/astro/.venv/venv2
 ENV ASTRO_PYENV_venv2 /home/astro/.venv/venv2/bin/python
