@@ -16,11 +16,11 @@ import (
 
 const (
 	pythonEnvTemplate = `USER root
-COPY --link --from=python:{{.PythonVersion}}-slim /usr/local/bin/*{{.PythonMajorMinor}}* /usr/local/bin/
-COPY --link --from=python:{{.PythonVersion}}-slim /usr/local/include/python{{.PythonMajorMinor}}* /usr/local/include/python{{.PythonMajorMinor}}
-COPY --link --from=python:{{.PythonVersion}}-slim /usr/local/lib/pkgconfig/*{{.PythonMajorMinor}}* /usr/local/lib/pkgconfig/
-COPY --link --from=python:{{.PythonVersion}}-slim /usr/local/lib/*{{.PythonMajorMinor}}*.so* /usr/local/lib/
-COPY --link --from=python:{{.PythonVersion}}-slim /usr/local/lib/python{{.PythonMajorMinor}} /usr/local/lib/python{{.PythonMajorMinor}}
+COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/bin/*{{.PythonMajorMinor}}* /usr/local/bin/
+COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/include/python{{.PythonMajorMinor}}* /usr/local/include/python{{.PythonMajorMinor}}
+COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/pkgconfig/*{{.PythonMajorMinor}}* /usr/local/lib/pkgconfig/
+COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/*{{.PythonMajorMinor}}*.so* /usr/local/lib/
+COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/python{{.PythonMajorMinor}} /usr/local/lib/python{{.PythonMajorMinor}}
 RUN /sbin/ldconfig /usr/local/lib
 # hack for python <= 3.7
 RUN ln -s /usr/local/include/python{{.PythonMajorMinor}} /usr/local/include/python{{.PythonMajorMinor}}m
@@ -36,6 +36,8 @@ ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 	argCommand        = "ARG"
 	pyenvCommand      = "PYENV"
 	astroRuntimeImage = "quay.io/astronomer/astro-runtime"
+
+	defaultImageFlavour = "slim-bullseye"
 )
 
 var (
@@ -51,6 +53,7 @@ type Transformer struct {
 type virtualEnv struct {
 	Name             string
 	PythonVersion    string
+	PythonFlavour    string
 	PythonMajorMinor string
 	RequirementsFile string
 }
@@ -167,6 +170,8 @@ func parsePyenvDirective(s string) (*virtualEnv, error) {
 	}
 	env := &virtualEnv{
 		PythonVersion: tokens[1],
+		// For now we just hardcode this -- will add an option later
+		PythonFlavour: defaultImageFlavour,
 		Name:          tokens[2],
 	}
 	if len(tokens) > 3 {
