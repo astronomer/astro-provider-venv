@@ -21,11 +21,10 @@ runs:
   using: "composite"
   steps:
     - id: setup-go
-      uses: actions/setup-go@v3
+      uses: actions/setup-go@v4
       with:
         go-version-file: 'buildkit/go.mod'
         cache-dependency-path: 'buildkit/go.sum'
-        cache: true
       if: inputs.go
 
     - run: echo "$extras" > .python-extras
