@@ -1,4 +1,5 @@
 import sys
+from contextlib import suppress
 from pathlib import Path
 
 import pytest
@@ -20,6 +21,12 @@ def in_memory_airflow_db(monkeypatch):
 @pytest.mark.usefixtures("venv")
 @pytest.fixture(scope="module")
 def dagbag(venv):
+    with suppress(ImportError):
+        # Airflow 2.6+ needs this
+        from airflow.settings import configure_policy_plugin_manager
+
+        configure_policy_plugin_manager()
+
     examples = Path(__file__).parents[1] / "example_dags"
     return DagBag(examples, include_examples=False)
 
