@@ -2,6 +2,7 @@ package transform
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"regexp"
 	"strings"
@@ -48,6 +49,7 @@ var (
 )
 
 type Transformer struct {
+	buildArgs      map[string]string
 	pythonVersions map[string]struct{}
 	virtualEnvs    map[string]struct{}
 }
@@ -60,8 +62,9 @@ type virtualEnv struct {
 	RequirementsFile string
 }
 
-func newTransformer() *Transformer {
+func newTransformer(buildArgs map[string]string) *Transformer {
 	return &Transformer{
+		buildArgs:      buildArgs,
 		pythonVersions: map[string]struct{}{},
 	}
 }
@@ -69,57 +72,94 @@ func newTransformer() *Transformer {
 // Transform processes the custom dockerfile and extracts the first FROM and converts the rest of the user dockerfile
 // into standard Docker commands
 func Transform(dockerFile []byte, buildArgs map[string]string) (*parser.Node, *parser.Node, error) {
+	return newTransformer(buildArgs).Transform(dockerFile)
+}
+
+func (t *Transformer) parsePreamble(tokens chan *parser.Node) (*parser.Node, int, error) {
+	preamble := &parser.Node{StartLine: -1}
+	adjustedLine := 0
+
+tokens_loop:
+	for node := range tokens {
+		preamble.AddChild(node, node.StartLine, node.EndLine)
+		switch strings.ToUpper(node.Value) {
+		case argCommand:
+			if err := t.processArg(node); err != nil {
+				return nil, 0, err
+			}
+		case fromCommand:
+			// finish preamble when we encounter the first FROM
+
+			// Try to use the astro-runtime base (non-onbuild) image. If we have any error, "fail safe"
+			// and leave it unmodified.
+			_ = t.ensureValidBaseImage(node)
+			adjustedLine = -node.EndLine
+			break tokens_loop
+		case pyenvCommand:
+			return nil, 0, fmt.Errorf("%s cannot appear before the first FROM", pyenvCommand)
+		}
+	}
+	return preamble, adjustedLine, nil
+}
+
+func (t *Transformer) parseMain(tokens chan *parser.Node, lineNumAdjustment int) (*parser.Node, error) {
+	transformedAst := &parser.Node{StartLine: -1}
+
+	for node := range tokens {
+		switch strings.ToUpper(node.Value) {
+		case pyenvCommand:
+			pyenvNodes, err := t.processPyenv(node)
+			if err != nil {
+				return nil, err
+			}
+			lineOffset := 0
+			for _, n := range pyenvNodes.Children {
+				transformedAst.AddChild(n, n.StartLine+lineNumAdjustment, n.EndLine+lineNumAdjustment)
+				lineOffset += (n.EndLine - n.StartLine) + 1
+			}
+			lineNumAdjustment += lineOffset
+		default:
+			lineDiff := node.EndLine - node.StartLine
+			transformedAst.AddChild(node, lineNumAdjustment+1, lineDiff+lineNumAdjustment+1)
+		}
+	}
+	return transformedAst, nil
+}
+
+func (t *Transformer) Transform(dockerFile []byte) (*parser.Node, *parser.Node, error) {
 	ast, err := dockerfile.Parse(dockerFile)
 	if err != nil {
 		return nil, nil, err
 	}
-	transformedAst := &parser.Node{StartLine: -1}
-	preamble := &parser.Node{StartLine: -1}
-	transformer := newTransformer()
-	inPreamble := true
-	adjustedLine := 0
-	for _, node := range ast.Children {
-		if inPreamble {
-			switch strings.ToUpper(node.Value) {
-			case argCommand:
-				if err = processArg(node, buildArgs); err != nil {
-					return nil, nil, err
-				}
-			case fromCommand:
-				// finish preamble when we encounter the first FROM
 
-				// Try to use the astro-runtime base (non-onbuild) image. If we have any error, "fail safe"
-				// and leave it unmodified.
-				_ = ensureValidBaseImage(node, buildArgs)
-				adjustedLine = -node.EndLine
-				inPreamble = false
-			case pyenvCommand:
-				return nil, nil, fmt.Errorf("%s cannot appear before the first FROM", pyenvCommand)
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// tokenStream is an "iterator" over the AST nodes in the Dockerfile
+	tokenStream := make(chan *parser.Node)
+	go func(ctx context.Context) {
+	tokens_loop:
+		for _, node := range ast.Children {
+			select {
+			case <-ctx.Done():
+				break tokens_loop
+			case tokenStream <- node:
+				continue
 			}
-			preamble.AddChild(node, node.StartLine, node.EndLine)
-			continue
 		}
-		switch strings.ToUpper(node.Value) {
-		case pyenvCommand:
-			pyenvNodes, err := transformer.processPyenv(node)
-			if err != nil {
-				return nil, nil, err
-			}
-			lineOffset := 0
-			for _, n := range pyenvNodes.Children {
-				transformedAst.AddChild(n, n.StartLine+adjustedLine, n.EndLine+adjustedLine)
-				lineOffset += (n.EndLine - n.StartLine) + 1
-			}
-			adjustedLine += lineOffset
-		default:
-			lineDiff := node.EndLine - node.StartLine
-			transformedAst.AddChild(node, adjustedLine+1, lineDiff+adjustedLine+1)
-		}
+		close(tokenStream)
+	}(ctx)
+	defer cancel()
+
+	preamble, adjustedLine, err := t.parsePreamble(tokenStream)
+	if err != nil {
+		return nil, nil, err
 	}
-	return preamble, transformedAst, nil
+	transformedAst, err := t.parseMain(tokenStream, adjustedLine)
+
+	return preamble, transformedAst, err
 }
 
-func processArg(node *parser.Node, buildArgs map[string]string) error {
+func (t *Transformer) processArg(node *parser.Node) error {
 	inst, err := instructions.ParseInstruction(node)
 	if err != nil {
 		return err
@@ -129,8 +169,8 @@ func processArg(node *parser.Node, buildArgs map[string]string) error {
 			if pair.Value == nil {
 				continue
 			}
-			if _, exists := buildArgs[pair.Key]; !exists {
-				buildArgs[pair.Key] = *pair.Value
+			if _, exists := t.buildArgs[pair.Key]; !exists {
+				t.buildArgs[pair.Key] = *pair.Value
 			}
 		}
 	} else {
@@ -140,13 +180,13 @@ func processArg(node *parser.Node, buildArgs map[string]string) error {
 	return nil
 }
 
-func (r *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
+func (t *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
 	venv, err := parsePyenvDirective(pyenv.Original)
 	if err != nil {
 		return nil, err
 	}
 	newNode := &parser.Node{}
-	pythonVersionNode, err := r.addPythonVersion(venv)
+	pythonVersionNode, err := t.addPythonVersion(venv)
 	if err != nil {
 		return nil, err
 	}
@@ -155,7 +195,7 @@ func (r *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
 		newNode.AddChild(n, n.StartLine, n.EndLine)
 		lineOffset = n.EndLine
 	}
-	venvNode, err := r.addVirtualEnvironment(venv)
+	venvNode, err := t.addVirtualEnvironment(venv)
 	if err != nil {
 		return nil, err
 	}
@@ -203,8 +243,8 @@ func extractPythonMajorMinor(pythonVersion string) string {
 	return strings.Join(strings.Split(pythonVersion, ".")[:2], ".")
 }
 
-func (r *Transformer) addPythonVersion(venv *virtualEnv) (*parser.Node, error) {
-	if _, exists := r.pythonVersions[venv.PythonMajorMinor]; exists {
+func (t *Transformer) addPythonVersion(venv *virtualEnv) (*parser.Node, error) {
+	if _, exists := t.pythonVersions[venv.PythonMajorMinor]; exists {
 		return nil, nil
 	}
 	tpl, err := template.New("pyenv").Parse(pythonEnvTemplate)
@@ -222,8 +262,8 @@ func (r *Transformer) addPythonVersion(venv *virtualEnv) (*parser.Node, error) {
 	return parsedNodes.AST, nil
 }
 
-func (r *Transformer) addVirtualEnvironment(venv *virtualEnv) (*parser.Node, error) {
-	if _, exists := r.virtualEnvs[venv.Name]; exists {
+func (t *Transformer) addVirtualEnvironment(venv *virtualEnv) (*parser.Node, error) {
+	if _, exists := t.virtualEnvs[venv.Name]; exists {
 		return nil, fmt.Errorf("")
 	}
 	tpl, err := template.New("venv").Parse(virtualEnvTemplate)
@@ -250,7 +290,7 @@ func (r *Transformer) addVirtualEnvironment(venv *virtualEnv) (*parser.Node, err
 	return parsedNodes.AST, nil
 }
 
-func ensureValidBaseImage(node *parser.Node, buildArgs map[string]string) error {
+func (t *Transformer) ensureValidBaseImage(node *parser.Node) error {
 	var img string
 
 	inst, err := instructions.ParseInstruction(node)
@@ -269,7 +309,7 @@ func ensureValidBaseImage(node *parser.Node, buildArgs map[string]string) error 
 	if strings.Contains(img, "$") {
 		// Interpolate build args
 		lexer := shell.NewLex('\\')
-		if img, err = lexer.ProcessWordWithMap(img, buildArgs); err != nil {
+		if img, err = lexer.ProcessWordWithMap(img, t.buildArgs); err != nil {
 			return err
 		}
 
