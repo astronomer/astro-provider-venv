@@ -165,9 +165,7 @@ def snowpark_task():
 
 ## Requirements for building Docker images
 
-This needs the [buildkit](https://docs.docker.com/build/buildkit/) backend for Docker.
-
-It is enabled by default for Docker Desktop users; Linux users will need to enable it:
+This provider needs the [buildkit](https://docs.docker.com/build/buildkit/) backend for Docker. BuildKit is enabled for DockerDesktop users by default. In other environments (e.g. Linux or CI/CD pipelines), BuildKit can be enabled by setting the environment variable `DOCKER_BUILDKIT=1`. 
 
 To set the BuildKit environment variable when running the docker build command, run:
 
