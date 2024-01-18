@@ -36,7 +36,7 @@ apache-airflow-providers-snowflake
 ```Dockerfile
 # syntax=quay.io/astronomer/airflow-extensions:v1
 
-FROM quay.io/astronomer/astro-runtime:7.2.0-base
+FROM quay.io/astronomer/astro-runtime:10.1.0-base
 
 PYENV 3.8 snowpark snowpark-requirements.txt
 ```
