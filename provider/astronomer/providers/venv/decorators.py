@@ -38,7 +38,7 @@ class PythonVenvDecoratedOperator(DecoratedOperator, ExternalPythonOperator):
         res = remove_task_decorator(res, self.custom_operator_name)
         return res
 
-    # Override the version from superclass to be tollerant of astro specific post releases.
+    # Override the version from superclass to be tolerant of astro specific post releases.
     def _get_airflow_version_from_target_env(self) -> str | None:
         import subprocess
 
