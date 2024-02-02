@@ -23,6 +23,12 @@ dependencies = ["apache-airflow>=2.4"]
 [project.optional-dependencies]
 tests = [
     "pytest>=7.0",
+    # Avoid this version _for tests only_. Runtime doesn't matter
+    "apache-airflow!=2.8.1", # https://github.com/apache/airflow/pull/37144
+
+    # Only version compatible with Airflow right now
+    # https://github.com/apache/airflow/issues/36897
+    "flask-session<0.6",
 ]
 
 [project.readme]
