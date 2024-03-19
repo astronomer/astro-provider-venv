@@ -4,6 +4,7 @@ go 1.21.6
 
 require (
 	github.com/EricHripko/buildkit-fdk v0.2.0
+	github.com/coreos/go-semver v0.3.1
 	github.com/docker/distribution v2.8.1+incompatible
 	github.com/moby/buildkit v0.10.6
 	github.com/pkg/errors v0.9.1
@@ -42,7 +43,7 @@ require (
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	google.golang.org/grpc v1.45.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
-	gopkg.in/yaml.v3 v3.0.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
 replace github.com/Sirupsen/logrus => ./deps/logrus

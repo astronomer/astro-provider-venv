@@ -9,6 +9,7 @@ import (
 	"text/template"
 
 	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
+	"github.com/coreos/go-semver/semver"
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -23,8 +24,9 @@ COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/p
 COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/*{{.PythonMajorMinor}}*.so* /usr/local/lib/
 COPY --link --from=python:{{.PythonVersion}}-{{.PythonFlavour}} /usr/local/lib/python{{.PythonMajorMinor}} /usr/local/lib/python{{.PythonMajorMinor}}
 RUN /sbin/ldconfig /usr/local/lib
-# hack for python <= 3.7
+{{ if .Py37OrOlder -}}
 RUN ln -s /usr/local/include/python{{.PythonMajorMinor}} /usr/local/include/python{{.PythonMajorMinor}}m
+{{ end }}
 USER astro
 `
 	virtualEnvTemplate = `RUN mkdir -p /home/astro/.cache/pip /home/astro/.venv/{{.Name}}
@@ -46,6 +48,7 @@ ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 var (
 	venvNamePattern      = regexp.MustCompile(`[a-zA-Z0-9_-]+`)
 	pythonVersionPattern = regexp.MustCompile(`[0-9]+\.[0-9]+(\.[0-9]+)?(-.*)?`)
+	v3_8                 = *semver.New("3.8.0")
 )
 
 type Transformer struct {
@@ -60,6 +63,7 @@ type virtualEnv struct {
 	PythonFlavour    string
 	PythonMajorMinor string
 	RequirementsFile string
+	Py37OrOlder      bool
 }
 
 func newTransformer(buildArgs map[string]string) *Transformer {
@@ -191,9 +195,11 @@ func (t *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
 		return nil, err
 	}
 	lineOffset := 0
-	for _, n := range pythonVersionNode.Children {
-		newNode.AddChild(n, n.StartLine, n.EndLine)
-		lineOffset = n.EndLine
+	if pythonVersionNode != nil {
+		for _, n := range pythonVersionNode.Children {
+			newNode.AddChild(n, n.StartLine, n.EndLine)
+			lineOffset = n.EndLine
+		}
 	}
 	venvNode, err := t.addVirtualEnvironment(venv)
 	if err != nil {
@@ -223,6 +229,8 @@ func parsePyenvDirective(s string) (*virtualEnv, error) {
 		return nil, err
 	}
 	env.PythonMajorMinor = extractPythonMajorMinor(env.PythonVersion)
+
+	env.Py37OrOlder = semver.New(env.PythonMajorMinor + ".0").LessThan(v3_8)
 	return env, nil
 }
 
@@ -231,6 +239,7 @@ func validateVirtualEnv(env *virtualEnv) error {
 	if !pythonVersionPattern.MatchString(env.PythonVersion) {
 		return fmt.Errorf("invalid python version %s, should match pattern %v", env.PythonVersion, pythonVersionPattern)
 	}
+
 	// validate venv name
 	if !venvNamePattern.MatchString(env.Name) {
 		return fmt.Errorf("invalid virtual env name %s, should match pattern %v", env.Name, venvNamePattern)
@@ -259,6 +268,7 @@ func (t *Transformer) addPythonVersion(venv *virtualEnv) (*parser.Node, error) {
 	if err != nil {
 		return nil, err
 	}
+	t.pythonVersions[venv.PythonMajorMinor] = struct{}{}
 	return parsedNodes.AST, nil
 }
 
