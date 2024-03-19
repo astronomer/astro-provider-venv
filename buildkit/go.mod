@@ -1,6 +1,6 @@
 module github.com/astronomer/astro-runtime-frontend
 
-go 1.19
+go 1.21.6
 
 require (
 	github.com/EricHripko/buildkit-fdk v0.2.0
