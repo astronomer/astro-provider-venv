@@ -85,25 +85,30 @@ func Print(node *parser.Node) (string, error) {
 }
 
 func printNode(node *parser.Node, writer io.Writer) error {
-	var v string
-
-	// format per directive
-	switch node.Value {
-	// all the commands that use parseMaybeJSON
-	// https://github.com/moby/buildkit/blob/2ec7d53b00f24624cda0adfbdceed982623a93b3/frontend/dockerfile/parser/parser.go#L152
-	case command.Cmd, command.Entrypoint, command.Run, command.Shell:
-		v = fmtCmd(node)
-	case command.Label:
-		v = fmtLabel(node)
-	default:
-		v = fmtDefault(node)
-	}
+	v := fmtNode(node)
 
 	_, err := fmt.Fprintln(writer, v)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+func fmtNode(node *parser.Node) (v string) {
+	// format per directive
+	switch strings.ToLower(node.Value) {
+	// all the commands that use parseMaybeJSON
+	// https://github.com/moby/buildkit/blob/2ec7d53b00f24624cda0adfbdceed982623a93b3/frontend/dockerfile/parser/parser.go#L152
+	case command.Cmd, command.Entrypoint, command.Run, command.Shell:
+		v = fmtCmd(node)
+	case command.Label:
+		v = fmtLabel(node)
+	case command.Onbuild:
+		v = fmtSubCommand(node)
+	default:
+		v = fmtDefault(node)
+	}
+	return v
 }
 
 func getCmd(n *parser.Node) []string {
@@ -151,6 +156,16 @@ func fmtCmd(node *parser.Node) string {
 
 	cmd := getCmd(node)
 	return strings.Join(cmd, " ")
+}
+
+func fmtSubCommand(node *parser.Node) string {
+	cmd := []string{strings.ToUpper(node.Value)}
+	if len(node.Flags) > 0 {
+		cmd = append(cmd, node.Flags...)
+	}
+
+	sub := node.Next.Children[0]
+	return strings.Join(cmd, " ") + " " + fmtCmd(sub)
 }
 
 func fmtDefault(node *parser.Node) string {
