@@ -120,3 +120,20 @@ FROM astro-runtime:7.0.0
 	preambleText, err := dockerfile.Print(preamble)
 	assert.Equal(t, expectedPreamble, preambleText)
 }
+
+func TestOnBuild(t *testing.T) {
+	testDockerfile := `# syntax=astronomer/astro-runtime
+FROM quay.io/astronomer/astro-runtime:7.0.0
+ONBUILD RUN echo "hi!"
+`
+
+	expectedDockerfile := `ONBUILD RUN echo "hi!"
+`
+
+	preamble, body, err := Transform([]byte(testDockerfile), nil)
+	require.NoError(t, err)
+	assert.NotNil(t, preamble)
+	assert.NotNil(t, body)
+	bodyText, err := dockerfile.Print(body)
+	assert.Equal(t, expectedDockerfile, bodyText)
+}
