@@ -10,14 +10,21 @@ import (
 
 func AssertDockerfileTransform(t *testing.T, input, expectedPreamble, expectedDockerfile string) {
 	t.Helper()
+	AssertDockerfileTransformWithBuildArgs(t, input, map[string]string{}, expectedPreamble, expectedDockerfile)
+}
 
-	preamble, body, err := Transform([]byte(input), map[string]string{})
+func AssertDockerfileTransformWithBuildArgs(t *testing.T, input string, buildArgs map[string]string, expectedPreamble, expectedDockerfile string) {
+	t.Helper()
+
+	preamble, body, err := Transform([]byte(input), buildArgs)
 	require.NoError(t, err)
 	assert.NotNil(t, preamble)
 	assert.NotNil(t, body)
 	bodyText, err := dockerfile.Print(body)
+	require.NoError(t, err)
 	assert.Equal(t, expectedDockerfile, bodyText)
 	preambleText, err := dockerfile.Print(preamble)
+	require.NoError(t, err)
 	assert.Equal(t, expectedPreamble, preambleText)
 }
 
@@ -32,14 +39,14 @@ RUN mkdir /tmp/bar
 `
 	expectedPreamble := `
 ARG baseimage
-FROM ${baseimage}
+FROM quay.io/astronomer/astro-runtime:13.0.0-base
 `
 	expectedDockerfile := `USER root
-COPY --link --from=python:3.8-slim-bullseye /usr/local/bin/*3.8* /usr/local/bin/
-COPY --link --from=python:3.8-slim-bullseye /usr/local/include/python3.8* /usr/local/include/python3.8
-COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/pkgconfig/*3.8* /usr/local/lib/pkgconfig/
-COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/*3.8*.so* /usr/local/lib/
-COPY --link --from=python:3.8-slim-bullseye /usr/local/lib/python3.8 /usr/local/lib/python3.8
+COPY --link --from=python:3.8-slim-bookworm /usr/local/bin/*3.8* /usr/local/bin/
+COPY --link --from=python:3.8-slim-bookworm /usr/local/include/python3.8* /usr/local/include/python3.8
+COPY --link --from=python:3.8-slim-bookworm /usr/local/lib/pkgconfig/*3.8* /usr/local/lib/pkgconfig/
+COPY --link --from=python:3.8-slim-bookworm /usr/local/lib/*3.8*.so* /usr/local/lib/
+COPY --link --from=python:3.8-slim-bookworm /usr/local/lib/python3.8 /usr/local/lib/python3.8
 RUN /sbin/ldconfig /usr/local/lib
 
 USER astro
@@ -50,11 +57,11 @@ ENV ASTRO_PYENV_venv1 /home/astro/.venv/venv1/bin/python
 RUN --mount=type=cache,uid=50000,gid=0,target=/home/astro/.cache/pip /home/astro/.venv/venv1/bin/pip --cache-dir=/home/astro/.cache/pip install -r /home/astro/.venv/venv1/requirements.txt
 COPY foo bar
 USER root
-COPY --link --from=python:3.10-slim-bullseye /usr/local/bin/*3.10* /usr/local/bin/
-COPY --link --from=python:3.10-slim-bullseye /usr/local/include/python3.10* /usr/local/include/python3.10
-COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/pkgconfig/*3.10* /usr/local/lib/pkgconfig/
-COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/*3.10*.so* /usr/local/lib/
-COPY --link --from=python:3.10-slim-bullseye /usr/local/lib/python3.10 /usr/local/lib/python3.10
+COPY --link --from=python:3.10-slim-bookworm /usr/local/bin/*3.10* /usr/local/bin/
+COPY --link --from=python:3.10-slim-bookworm /usr/local/include/python3.10* /usr/local/include/python3.10
+COPY --link --from=python:3.10-slim-bookworm /usr/local/lib/pkgconfig/*3.10* /usr/local/lib/pkgconfig/
+COPY --link --from=python:3.10-slim-bookworm /usr/local/lib/*3.10*.so* /usr/local/lib/
+COPY --link --from=python:3.10-slim-bookworm /usr/local/lib/python3.10 /usr/local/lib/python3.10
 RUN /sbin/ldconfig /usr/local/lib
 
 USER astro
@@ -65,7 +72,7 @@ ENV ASTRO_PYENV_venv2 /home/astro/.venv/venv2/bin/python
 RUN mkdir /tmp/bar
 `
 
-	AssertDockerfileTransform(t, testDockerfile, expectedPreamble, expectedDockerfile)
+	AssertDockerfileTransformWithBuildArgs(t, testDockerfile, map[string]string{"baseimage": "quay.io/astronomer/astro-runtime:13.0.0"}, expectedPreamble, expectedDockerfile)
 }
 
 func TestPython3_8(t *testing.T) {
@@ -80,11 +87,11 @@ ARG baseimage
 FROM ${baseimage}
 `
 	expectedDockerfile := `USER root
-COPY --link --from=python:3.7-slim-bullseye /usr/local/bin/*3.7* /usr/local/bin/
-COPY --link --from=python:3.7-slim-bullseye /usr/local/include/python3.7* /usr/local/include/python3.7
-COPY --link --from=python:3.7-slim-bullseye /usr/local/lib/pkgconfig/*3.7* /usr/local/lib/pkgconfig/
-COPY --link --from=python:3.7-slim-bullseye /usr/local/lib/*3.7*.so* /usr/local/lib/
-COPY --link --from=python:3.7-slim-bullseye /usr/local/lib/python3.7 /usr/local/lib/python3.7
+COPY --link --from=python:3.7-slim-bookworm /usr/local/bin/*3.7* /usr/local/bin/
+COPY --link --from=python:3.7-slim-bookworm /usr/local/include/python3.7* /usr/local/include/python3.7
+COPY --link --from=python:3.7-slim-bookworm /usr/local/lib/pkgconfig/*3.7* /usr/local/lib/pkgconfig/
+COPY --link --from=python:3.7-slim-bookworm /usr/local/lib/*3.7*.so* /usr/local/lib/
+COPY --link --from=python:3.7-slim-bookworm /usr/local/lib/python3.7 /usr/local/lib/python3.7
 RUN /sbin/ldconfig /usr/local/lib
 RUN ln -s /usr/local/include/python3.7 /usr/local/include/python3.7m
 
@@ -123,14 +130,7 @@ ARG ver=7.0.0
 FROM quay.io/astronomer/astro-runtime:7.4.0-base
 `
 
-	preamble, body, err := Transform([]byte(testDockerfile), map[string]string{"ver": "7.4.0"})
-	require.NoError(t, err)
-	assert.NotNil(t, preamble)
-	assert.NotNil(t, body)
-	bodyText, err := dockerfile.Print(body)
-	assert.Equal(t, "", bodyText)
-	preambleText, err := dockerfile.Print(preamble)
-	assert.Equal(t, expectedPreamble, preambleText)
+	AssertDockerfileTransformWithBuildArgs(t, testDockerfile, map[string]string{"ver": "7.4.0"}, expectedPreamble, "")
 }
 
 func TestTransformsNonRuntimeLeftAlone(t *testing.T) {
