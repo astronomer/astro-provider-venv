@@ -40,10 +40,19 @@ ENV ASTRO_PYENV_{{.Name}} /home/astro/.venv/{{.Name}}/bin/python
 	pyenvCommand      = "PYENV"
 	astroRuntimeImage = "quay.io/astronomer/astro-runtime"
 
-	defaultImageFlavour = "slim-bullseye"
 	// Sadly for the `RUN --mount,uid=$uid` we need to use a numeric ID.
 	defaultAstroUid = 50000
 )
+
+var runtimeImageToFlavour = []struct {
+	*semver.Version
+	Flavour string
+}{
+	// Everything before Runtime 12 used bullseye
+	{semver.New("12.0.0"), "slim-bullseye"},
+	// Everything after used bookworm.
+	{nil, "slim-bookworm"},
+}
 
 var (
 	venvNamePattern      = regexp.MustCompile(`[a-zA-Z0-9_-]+`)
@@ -55,6 +64,9 @@ type Transformer struct {
 	buildArgs      map[string]string
 	pythonVersions map[string]struct{}
 	virtualEnvs    map[string]struct{}
+
+	// The version of the astro Runtime image we are based upon, if we can determine it
+	runtimeImageVersion string
 }
 
 type virtualEnv struct {
@@ -185,7 +197,7 @@ func (t *Transformer) processArg(node *parser.Node) error {
 }
 
 func (t *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
-	venv, err := parsePyenvDirective(pyenv.Original)
+	venv, err := t.parsePyenvDirective(pyenv.Original)
 	if err != nil {
 		return nil, err
 	}
@@ -211,15 +223,52 @@ func (t *Transformer) processPyenv(pyenv *parser.Node) (*parser.Node, error) {
 	return newNode, nil
 }
 
-func parsePyenvDirective(s string) (*virtualEnv, error) {
+func (t *Transformer) getImageFlavour() (string, error) {
+	// If we are ever unsure, return the latest flavour
+	candidate := runtimeImageToFlavour[len(runtimeImageToFlavour)-1].Flavour
+
+	if t.runtimeImageVersion == "" {
+		// No runtime version we could find, return whatever the current default version is.
+		return candidate, nil
+	}
+	parts := strings.SplitN(t.runtimeImageVersion, "-", 1)
+	ver, err := semver.NewVersion(parts[0])
+	if err != nil {
+		// If we couldn't parse the version, return a default, don't fail!
+		return candidate, err
+	}
+
+	msg := ""
+	candidate = runtimeImageToFlavour[0].Flavour
+	// Look through all versions rules until we find one that doesn't match. At
+	// that point we know the previous answer we got is the one we need to use
+	for _, cond := range runtimeImageToFlavour {
+		msg += fmt.Sprintf("Comparing %#v < %#v: %v\n", ver, cond.Version, (cond.Version != nil && ver.LessThan(*cond.Version)))
+		if cond.Version != nil && ver.LessThan(*cond.Version) {
+			break
+		}
+		candidate = cond.Flavour
+	}
+	// return candidate, fmt.Errorf("%s, candidate=%s", msg, candidate)
+	return candidate, nil
+}
+
+func (t *Transformer) parsePyenvDirective(s string) (*virtualEnv, error) {
 	tokens := strings.Split(s, " ")
 	if len(tokens) < 3 {
 		return nil, fmt.Errorf("invalid PYENV directive: '%s', should be 'PYENV PYTHON_VERSION VENV_NAME [REQS_FILE]'", s)
 	}
+
+	// TODO: Work out how to show warnings to user via docker build backend!
+	// For now don't ever fail unless there is no flavour
+	flavour, err := t.getImageFlavour()
+	if flavour == "" && err != nil {
+		return nil, err
+	}
 	env := &virtualEnv{
 		PythonVersion: tokens[1],
-		// For now we just hardcode this -- will add an option later
-		PythonFlavour: defaultImageFlavour,
+		// For now we just detect this -- will add an option later to let user control it
+		PythonFlavour: flavour,
 		Name:          tokens[2],
 	}
 	if len(tokens) > 3 {
@@ -332,9 +381,13 @@ func (t *Transformer) ensureValidBaseImage(node *parser.Node) error {
 
 	if ref.Name() == astroRuntimeImage {
 		if tagged, ok := ref.(reference.NamedTagged); ok {
-			if !strings.HasSuffix(tagged.Tag(), "-base") {
-				ref, _ = reference.WithTag(ref, tagged.Tag()+"-base")
+			tag := tagged.Tag()
+			if !strings.HasSuffix(tag, "-base") {
+				t.runtimeImageVersion = tag
+				ref, _ = reference.WithTag(ref, tag+"-base")
 				imgNode.Value = ref.String()
+			} else {
+				t.runtimeImageVersion = strings.TrimSuffix(tag, "-base")
 			}
 		}
 	}
