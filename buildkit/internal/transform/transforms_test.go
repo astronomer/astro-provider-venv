@@ -1,6 +1,7 @@
 package transform
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/astronomer/astro-runtime-frontend/internal/dockerfile"
@@ -201,4 +202,33 @@ ENV ASTRO_PYENV_two /home/astro/.venv/two/bin/python
 `
 
 	AssertDockerfileTransform(t, testDockerfile, expectedPreamble, expectedDockerfile)
+}
+
+func TestImageFlavour(t *testing.T) {
+	transformer := newTransformer(nil)
+
+	cases := []struct {
+		version  string
+		expected string
+	}{
+		{"9.0.1", "slim-bullseye"},
+		{"11.12.0", "slim-bullseye"},
+		// These versions were mistakenly released based on bookworm
+		{"11.13.0", "slim-bookworm"},
+		{"11.14.0", "slim-bookworm"},
+		{"11.14.1", "slim-bullseye"},
+		{"11.14.2", "slim-bullseye"},
+		// And then this onwards is bullseye properly
+		{"12.0.0", "slim-bookworm"},
+	}
+
+	for _, tt := range cases {
+		t.Run(fmt.Sprintf("version=%s", tt.version), func(t *testing.T) {
+			transformer.runtimeImageVersion = tt.version
+			got, err := transformer.getImageFlavour()
+			if assert.NoError(t, err) {
+				assert.Equal(t, got, tt.expected)
+			}
+		})
+	}
 }

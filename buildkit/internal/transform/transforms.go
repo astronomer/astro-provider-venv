@@ -48,10 +48,10 @@ var runtimeImageToFlavour = []struct {
 	*semver.Version
 	Flavour string
 }{
-	// Everything before Runtime 12 used bullseye
-	{semver.New("12.0.0"), "slim-bullseye"},
-	// Everything after used bookworm.
-	{nil, "slim-bookworm"},
+	{semver.New("11.13.0"), "slim-bullseye"}, // < 11.13.0 is on slim-bullseye
+	{semver.New("11.14.1"), "slim-bookworm"}, // >= 11.13.0, < 11.14.1 is on slim-bookworm
+	{semver.New("12.0.0"), "slim-bullseye"},  // >=11.14.1, < 12.0.0 is on slub.bullseye
+	{nil, "slim-bookworm"},                   // Everything after uses slim-bookworm.
 }
 
 var (
@@ -238,18 +238,14 @@ func (t *Transformer) getImageFlavour() (string, error) {
 		return candidate, err
 	}
 
-	msg := ""
-	candidate = runtimeImageToFlavour[0].Flavour
 	// Look through all versions rules until we find one that doesn't match. At
 	// that point we know the previous answer we got is the one we need to use
 	for _, cond := range runtimeImageToFlavour {
-		msg += fmt.Sprintf("Comparing %#v < %#v: %v\n", ver, cond.Version, (cond.Version != nil && ver.LessThan(*cond.Version)))
+		candidate = cond.Flavour
 		if cond.Version != nil && ver.LessThan(*cond.Version) {
 			break
 		}
-		candidate = cond.Flavour
 	}
-	// return candidate, fmt.Errorf("%s, candidate=%s", msg, candidate)
 	return candidate, nil
 }
 
