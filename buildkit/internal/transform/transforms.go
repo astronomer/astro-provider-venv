@@ -49,8 +49,8 @@ var runtimeImageToFlavour = []struct {
 	Flavour string
 }{
 	{semver.New("11.13.0"), "slim-bullseye"}, // < 11.13.0 is on slim-bullseye
-	{semver.New("11.14.1"), "slim-bookworm"}, // >= 11.13.0, < 11.14.1 is on slim-bookworm
-	{semver.New("12.0.0"), "slim-bullseye"},  // >=11.14.1, < 12.0.0 is on slub.bullseye
+	{semver.New("11.15.0"), "slim-bookworm"}, // >= 11.13.0, < 11.15.0 is on slim-bookworm
+	{semver.New("12.0.0"), "slim-bullseye"},  // >=11.15.0, < 12.0.0 is on slub.bullseye
 	{nil, "slim-bookworm"},                   // Everything after uses slim-bookworm.
 }
 

@@ -216,8 +216,9 @@ func TestImageFlavour(t *testing.T) {
 		// These versions were mistakenly released based on bookworm
 		{"11.13.0", "slim-bookworm"},
 		{"11.14.0", "slim-bookworm"},
-		{"11.14.1", "slim-bullseye"},
-		{"11.14.2", "slim-bullseye"},
+		{"11.15.0", "slim-bullseye"},
+		{"11.15.1", "slim-bullseye"},
+		{"11.17.0", "slim-bullseye"},
 		// And then this onwards is bullseye properly
 		{"12.0.0", "slim-bookworm"},
 	}
